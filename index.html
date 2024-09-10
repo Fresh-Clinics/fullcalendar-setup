@@ -57,16 +57,21 @@
             // Set the token for future requests
             apiClient.setToken(token);
 
-            // Fetch providers (units in SimplyBook)
-            const resources = await apiClient.request('getUnitList', {});
+            try {
+                // Fetch resources (units in SimplyBook)
+                const resources = await apiClient.request('unit.getUnits', {}); // Corrected method
 
-            // Fetch events (bookings)
-            const events = await apiClient.request('getBookings', {
-                start_date: '2024-10-01',
-                end_date: '2024-10-31'
-            });
+                // Fetch bookings (events)
+                const events = await apiClient.request('booking.getBookings', { // Corrected method
+                    start_date: '2024-10-01',
+                    end_date: '2024-10-31'
+                });
 
-            return { resources, events };
+                return { resources, events };
+            } catch (error) {
+                console.error('Error fetching data from SimplyBook.me:', error);
+                throw error;
+            }
         }
 
         // Convert SimplyBook.me data to FullCalendar format
@@ -112,19 +117,23 @@
 
             console.log('Fetched token:', token);
 
-            const { resources, events } = await fetchProvidersAndEvents(token);
+            try {
+                const { resources, events } = await fetchProvidersAndEvents(token);
 
-            if (!resources || !events) {
-                console.error('Failed to fetch resources or events from SimplyBook.me.');
-                return;
+                if (!resources || !events) {
+                    console.error('Failed to fetch resources or events from SimplyBook.me.');
+                    return;
+                }
+
+                console.log('Fetched resources:', resources);
+                console.log('Fetched events:', events);
+
+                const { calendarResources, calendarEvents } = convertDataToFullCalendarFormat(resources, events);
+
+                initializeCalendar(calendarResources, calendarEvents);
+            } catch (error) {
+                console.error('Failed to initialize calendar:', error);
             }
-
-            console.log('Fetched resources:', resources);
-            console.log('Fetched events:', events);
-
-            const { calendarResources, calendarEvents } = convertDataToFullCalendarFormat(resources, events);
-
-            initializeCalendar(calendarResources, calendarEvents);
         }
 
         // Run the main function when DOM is loaded
@@ -171,11 +180,11 @@
             };
 
             this.getUnits = function () {
-                return this.request('getUnitList', {});
+                return this.request('unit.getUnits', {}); // Corrected method
             };
 
             this.getBookings = function (params) {
-                return this.request('getBookings', [params]);
+                return this.request('booking.getBookings', [params]); // Corrected method
             };
         }
     </script>
