@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FullCalendar Setup</title>
+
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.css" rel="stylesheet">
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js"></script>
+    
+    <style>
+        #calendar {
+            max-width: 1100px;
+            margin: 40px auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Calendar Container -->
+    <div id="calendar"></div>
+
+    <!-- FullCalendar Initialization Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',  // Use your license key here
+                initialView: 'resourceTimeGridDay',
+                resources: [
+                    { id: 'a', title: 'Room A' },
+                    { id: 'b', title: 'Room B' },
+                    { id: 'c', title: 'Room C' },
+                    { id: 'd', title: 'Room D' }
+                ],
+                events: [
+                    { resourceId: 'a', title: 'Event 1', start: '2024-10-29T10:00:00', end: '2024-10-29T12:00:00' },
+                    { resourceId: 'b', title: 'Event 2', start: '2024-10-29T12:00:00', end: '2024-10-29T14:00:00' },
+                    { resourceId: 'c', title: 'Event 3', start: '2024-10-29T14:00:00', end: '2024-10-29T16:00:00' }
+                ]
+            });
+
+            calendar.render();
+        });
+    </script>
+
+</body>
+</html>
