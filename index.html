@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FullCalendar Setup</title>
+    <title>FullCalendar with SimplyBook.me Integration</title>
 
     <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
@@ -12,7 +12,10 @@
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js"></script>
-    
+
+    <!-- JSON-RPC Client for SimplyBook.me -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
     <style>
         #calendar {
             max-width: 1100px;
@@ -25,29 +28,156 @@
     <!-- Calendar Container -->
     <div id="calendar"></div>
 
-    <!-- FullCalendar Initialization Script -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        // Initialize SimplyBook.me JSONRpcClient
+        function initializeSimplyBookClient() {
+            return new JSONRpcClient({
+                'url': 'https://user-api.simplybook.me/login',
+                'onerror': function (error) {
+                    console.error('API Error:', error);
+                }
+            });
+        }
+
+        // Fetch SimplyBook.me Token
+        function getSimplyBookToken(client, company, key) {
+            return client.getToken(company, key);
+        }
+
+        // Fetch Providers (Resources) and Events
+        async function fetchProvidersAndEvents(token) {
+            const apiClient = new JSONRpcClient({
+                'url': 'https://user-api.simplybook.me',
+                'headers': { 'Content-Type': 'application/json' },
+                'onerror': function (error) {
+                    console.error('API Error:', error);
+                }
+            });
+
+            // Set the token for future requests
+            apiClient.setToken(token);
+
+            // Fetch providers (units in SimplyBook)
+            const resources = await apiClient.getUnits();
+
+            // Fetch events
+            const events = await apiClient.getBookings({
+                start_date: '2024-10-01',
+                end_date: '2024-10-31'
+            });
+
+            return { resources, events };
+        }
+
+        // Convert SimplyBook.me data to FullCalendar format
+        function convertDataToFullCalendarFormat(resources, events) {
+            const calendarResources = resources.map(resource => ({
+                id: resource.id,
+                title: resource.name
+            }));
+
+            const calendarEvents = events.map(event => ({
+                resourceId: event.unit_id,
+                title: event.name,
+                start: event.start_date_time,
+                end: event.end_date_time
+            }));
+
+            return { calendarResources, calendarEvents };
+        }
+
+        // Initialize FullCalendar
+        function initializeCalendar(calendarResources, calendarEvents) {
             var calendarEl = document.getElementById('calendar');
 
             var calendar = new FullCalendar.Calendar(calendarEl, {
-                schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',  // Use your license key here
+                schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
                 initialView: 'resourceTimeGridDay',
-                resources: [
-                    { id: 'a', title: 'Room A' },
-                    { id: 'b', title: 'Room B' },
-                    { id: 'c', title: 'Room C' },
-                    { id: 'd', title: 'Room D' }
-                ],
-                events: [
-                    { resourceId: 'a', title: 'Event 1', start: '2024-10-29T10:00:00', end: '2024-10-29T12:00:00' },
-                    { resourceId: 'b', title: 'Event 2', start: '2024-10-29T12:00:00', end: '2024-10-29T14:00:00' },
-                    { resourceId: 'c', title: 'Event 3', start: '2024-10-29T14:00:00', end: '2024-10-29T16:00:00' }
-                ]
+                resources: calendarResources,
+                events: calendarEvents
             });
 
             calendar.render();
-        });
+        }
+
+        // Main function to initialize everything
+        async function main() {
+            const simplyBookClient = initializeSimplyBookClient();
+            const token = await getSimplyBookToken(simplyBookClient, 'thefreshlifeconference', '5622f213016960fc53a1c61e6ac61aee0eabebcedd688b374f9761c9c6f69dce');
+            
+            if (!token) {
+                console.error('Failed to fetch SimplyBook.me token.');
+                return;
+            }
+
+            console.log('Fetched token:', token);
+
+            const { resources, events } = await fetchProvidersAndEvents(token);
+
+            if (!resources || !events) {
+                console.error('Failed to fetch resources or events from SimplyBook.me.');
+                return;
+            }
+
+            console.log('Fetched resources:', resources);
+            console.log('Fetched events:', events);
+
+            const { calendarResources, calendarEvents } = convertDataToFullCalendarFormat(resources, events);
+
+            initializeCalendar(calendarResources, calendarEvents);
+        }
+
+        // Run the main function when DOM is loaded
+        document.addEventListener('DOMContentLoaded', main);
+    </script>
+
+    <!-- Include SimplyBook.me JSONRpcClient -->
+    <script>
+        // JSON-RPC Client library for SimplyBook.me
+        function JSONRpcClient(options) {
+            this.url = options.url;
+            this.onerror = options.onerror || function () {};
+            this.headers = options.headers || {};
+            this.token = null;
+
+            this.request = function (method, params) {
+                return new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: this.url,
+                        type: 'POST',
+                        data: JSON.stringify({ method, params, jsonrpc: '2.0', id: 1 }),
+                        contentType: 'application/json',
+                        headers: this.headers,
+                        success: function (response) {
+                            if (response.error) {
+                                reject(response.error);
+                            } else {
+                                resolve(response.result);
+                            }
+                        },
+                        error: this.onerror
+                    });
+                });
+            };
+
+            this.getToken = function (company, key) {
+                return this.request('getToken', [company, key]);
+            };
+
+            this.setToken = function (token) {
+                this.token = token;
+                this.headers['X-Company-Login'] = 'thefreshlifeconference';
+                this.headers['X-Token'] = token;
+            };
+
+            this.getUnits = function () {
+                return this.request('getUnits', []);
+            };
+
+            this.getBookings = function (params) {
+                return this.request('getBookings', [params]);
+            };
+        }
     </script>
 
 </body>
